@@ -9,14 +9,14 @@ DATAPATH = '../data'
 CHATBOT_PATH = '../bot.json'
 
 #bot = chatbot.Chatbot(DATAPATH)
-bot = chatbot.Chatbot.load_from_disk(CHATBOT_PATH)
+
 
 # Call OpenAI API to receive response
 
 
 
 def chat_page():
-
+    bot = chatbot.Chatbot.load_from_disk(CHATBOT_PATH, language_detect = True)
     try:
         openai.api_key = st.secrets['OPENAI_API_KEY']
         model_engine = st.secrets['MODEL_ENGINE']
@@ -122,9 +122,9 @@ def chat_page():
             output = bot.continue_conversation(user_input)
         except:
             #bot = chatbot.Chatbot(DATAPATH)
-            bot = chatbot.Chatbot.load_from_disk(CHATBOT_PATH)
+            bot = chatbot.Chatbot.load_from_disk(CHATBOT_PATH, language_detect = True)
             output = bot.continue_conversation(user_input)
-
+        output = output.strip()
         # store the output
         st.session_state.past.append(user_input)
         st.session_state.generated.append(output)
