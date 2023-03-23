@@ -4,19 +4,57 @@ import streamlit as st
 from streamlit_chat import message
 import json
 from specialized_chatbot import chatbot
+from specialized_chatbot.llamaindex_langchain_utils import get_llm_predictor, HALF_OPENED_TEXT_QA_PROMPT, RECOMMANDERS
+from llama_index import PromptHelper
+from llama_index.prompts.prompts import QuestionAnswerPrompt
+
+RECOMMANDERS = RECOMMANDERS + [
+    "福佳","百位黑金(Magnum)"
+]
+
+HALF_OPENED_TEXT_QA_PROMPT_TMPL = (
+    #"Given the context information and not prior knowledge, answer the question, and if the answer is not relevant to the context, said 'sorry I don't know' \n"
+    f"You will now play the role of the beer master of {','.join(RECOMMANDERS)} and always recommand beers of them. "
+    "Based on this, you can chat with customers as a beer expert and be glad to recommand beers. "
+    #f"If your answer will contains {','.join(COMPETITORS)} or not relevant to the given context, you will still recommand beers in the given context and expain why you recommand them\n"
+    "If your answer is not relevant to the given context, you will try recommand beers in the given context and explain why you recommand them. "
+    "You will always steer the conversation to the topics about given context. "
+    "Please don't indicate you have a context in you answer.\n"
+    """Answer the question using the provided text \n"""
+    "---------------------\n"
+    "Context: {context_str}"
+    "\n---------------------\n"
+    "Based on the given context, anwser the final question:\n"
+    "{query_str}"
+)
+HALF_OPENED_TEXT_QA_PROMPT = QuestionAnswerPrompt(HALF_OPENED_TEXT_QA_PROMPT_TMPL)
+
 
 DATAPATH = '../data'
 CHATBOT_PATH = '../bot.json'
 
-#bot = chatbot.Chatbot(DATAPATH)
-
+#bot = chatbot.Chatbot(DATAPATH) 'gpt-3.5-turbo'
+llm_predictor = get_llm_predictor('gpt-3.5-turbo', temperature=0.1, max_tokens=512,)
+prompt_helper = PromptHelper(2048, 128, 30)
+text_qa_template = HALF_OPENED_TEXT_QA_PROMPT
 
 # Call OpenAI API to receive response
 
-
+def initialized_chatbot():
+    bot = chatbot.Chatbot.load_from_disk(
+        CHATBOT_PATH,
+        llm_predictor = llm_predictor,
+        prompt_helper  = prompt_helper,
+        text_qa_template = text_qa_template,
+        language_detect = True,
+        human_agent_name = 'customer',
+        ai_angent_name = "you"
+        )
+    bot.text_qa_template = text_qa_template
+    return bot
 
 def chat_page():
-    bot = chatbot.Chatbot.load_from_disk(CHATBOT_PATH, language_detect = True)
+    bot = initialized_chatbot()
     try:
         openai.api_key = st.secrets['OPENAI_API_KEY']
         model_engine = st.secrets['MODEL_ENGINE']
@@ -114,7 +152,7 @@ def chat_page():
     # Chat now!
     text_form = st.form(key='my_form', clear_on_submit=True)
     with text_form:
-        user_input = st.text_input(label="You:", value='', placeholder="Hello, how are you?")
+        user_input = st.text_input(label="You:", value='', placeholder="Recommand some beer please")
         submit_button = st.form_submit_button(label='Submit')
 
     if submit_button:
@@ -122,10 +160,11 @@ def chat_page():
             output = bot.continue_conversation(user_input)
         except:
             #bot = chatbot.Chatbot(DATAPATH)
-            bot = chatbot.Chatbot.load_from_disk(CHATBOT_PATH, language_detect = True)
+            bot = initialized_chatbot()
             output = bot.continue_conversation(user_input)
         output = output.strip()
         # store the output
+        #print(bot.text_qa_template.prompt.template)
         st.session_state.past.append(user_input)
         st.session_state.generated.append(output)
 
