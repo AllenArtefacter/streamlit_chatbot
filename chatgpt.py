@@ -3,19 +3,25 @@ import openai
 import streamlit as st
 from streamlit_chat import message
 import json
+import sys
+sys.path.append("../specialized_chatbot/")
+sys.path.append("../specialized_chatbot/specialized_chatbot")
 from specialized_chatbot import chatbot
+# from streamlit.report_thread import get_report_ctx
 
 DATAPATH = '../data'
 CHATBOT_PATH = '../bot.json'
 
+
 #bot = chatbot.Chatbot(DATAPATH)
-bot = chatbot.Chatbot.load_from_disk(CHATBOT_PATH)
 
 # Call OpenAI API to receive response
 
 
 
 def chat_page():
+    if 'bot' not in st.session_state:
+        st.session_state['bot'] = chatbot.Chatbot.load_from_disk(CHATBOT_PATH)
 
     try:
         openai.api_key = st.secrets['OPENAI_API_KEY']
@@ -114,23 +120,36 @@ def chat_page():
     # Chat now!
     text_form = st.form(key='my_form', clear_on_submit=True)
     with text_form:
-        user_input = st.text_input(label="You:", value='', placeholder="Hello, how are you?")
+        user_input = st.text_input(label="You:", value='', placeholder="Please enter your Question.")
         submit_button = st.form_submit_button(label='Submit')
 
     if submit_button:
         try:
-            output = bot.continue_conversation(user_input)
-        except:
-            #bot = chatbot.Chatbot(DATAPATH)
-            bot = chatbot.Chatbot.load_from_disk(CHATBOT_PATH)
-            output = bot.continue_conversation(user_input)
+            # st.session_state['bot'].question_list = st.session_state['past'].copy()
+            # bot.answer_list = st.session_state["generated"].copy()
+            output = st.session_state['bot'].continue_conversation(user_input)
+        except Exception as e:
+            print(e)
+            # bot = chatbot.Chatbot(DATAPATH)
+            st.session_state['bot'] = chatbot.Chatbot.load_from_disk(CHATBOT_PATH)
+            # bot.question_list = st.session_state['past'].copy()
+            # bot.answer_list = st.session_state["generated"].copy()
+            output = st.session_state['bot'].continue_conversation(user_input)
+        output = output.strip()
+
+        # print(st.session_state.past)
+        # print(user_input)
+        # print(output)
+        # print('-'*10)
+        # print(bot.question_list)
+        # print('-'*10)
 
         # store the output
         st.session_state.past.append(user_input)
         st.session_state.generated.append(output)
 
-        bot.question_list = st.session_state['past']
-        bot.answer_list = st.session_state["generated"]
+        # bot.question_list = st.session_state['past']
+        # bot.answer_list = st.session_state["generated"]
 
         if st.session_state['generated']:
             # enable codes below to test parameter changes
