@@ -4,39 +4,65 @@ import streamlit as st
 from streamlit_chat import message
 import json
 from specialized_chatbot import chatbot
-from specialized_chatbot.llamaindex_langchain_utils import get_llm_predictor, HALF_OPENED_TEXT_QA_PROMPT, RECOMMANDERS
+from specialized_chatbot.llamaindex_langchain_utils import (
+                            get_llm_predictor,
+                            HALF_OPENED_TEXT_QA_PROMPT,
+                            MORE_OPENED_TEXT_QA_PROMPT_ZH,
+                            MORE_OPENED_TEXT_QA_PROMPT,
+                            RECOMMANDERS,
+                            RECOMMANDERS_ZH
+)
+from specialized_chatbot.lang_utils import lang_detect
 from llama_index import PromptHelper
 from llama_index.prompts.prompts import QuestionAnswerPrompt
 
-RECOMMANDERS = RECOMMANDERS + [
-    "福佳","百位黑金(Magnum)"
-]
-
-HALF_OPENED_TEXT_QA_PROMPT_TMPL = (
+MORE_OPENED_TEXT_QA_PROMPT_TMPL =(
     #"Given the context information and not prior knowledge, answer the question, and if the answer is not relevant to the context, said 'sorry I don't know' \n"
-    f"You will now play the role of the beer master of {','.join(RECOMMANDERS)} and always recommand beers of them. "
-    "Based on this, you can chat with customers as a beer expert and be glad to recommand beers. "
+    f"You will now play the role of the beer master and the best assistant, chat with human and be very glad to follow any instructions."
+    #"You will always find a way to recommand beers. "
     #f"If your answer will contains {','.join(COMPETITORS)} or not relevant to the given context, you will still recommand beers in the given context and expain why you recommand them\n"
-    "If your answer is not relevant to the given context, you will try recommand beers in the given context and explain why you recommand them. "
-    "You will always steer the conversation to the topics about given context. "
-    "Please don't indicate you have a context in you answer.\n"
-    """Answer the question using the provided text \n"""
+    #"If your answer is not relevant to the given context, you will try recommand beers in the given context and explain why you recommand them. "
+    #"You will always steer the conversation to the topics about given context. "
+    f"If you are going to talk about beers, please talk more about beers in the given context or {', '.join(RECOMMANDERS)}."
+    "Other beer brands are not your area\n"
+    #"Please don't indicate you have a context in you answer.\n"
+    #"""Answer the question using the provided text \n"""
     "---------------------\n"
     "Context: {context_str}"
     "\n---------------------\n"
-    "Based on the given context, anwser the final question:\n"
+    "Finish the final conversation:\n"
     "{query_str}"
 )
-HALF_OPENED_TEXT_QA_PROMPT = QuestionAnswerPrompt(HALF_OPENED_TEXT_QA_PROMPT_TMPL)
+
+MORE_OPENED_TEXT_QA_PROMPT_ZH_TMPL =(
+    #"Given the context information and not prior knowledge, answer the question, and if the answer is not relevant to the context, said 'sorry I don't know' \n"
+    f"你将扮演啤酒大师与消费者聊天。"
+    "你总是可以找到合适的方法去推荐啤酒 "
+    #f"If your answer will contains {','.join(COMPETITORS)} or not relevant to the given context, you will still recommand beers in the given context and expain why you recommand them\n"
+    #"If your answer is not relevant to the given context, you will try recommand beers in the given context and explain why you recommand them. "
+    #"You will always steer the conversation to the topics about given context. "
+    f"如果你要谈论啤酒，尽量谈论情境中提到的啤酒，或者 {'，'.join(RECOMMANDERS_ZH)}\n"
+    #"Please don't indicate you have a context in you answer.\n"
+    #"""Answer the question using the provided text \n"""
+    "---------------------\n"
+    "情境: {context_str}"
+    "\n---------------------\n"
+    "请完成最后一次的对话:\n"
+    "{query_str}"
+)
+
+
+MORE_OPENED_TEXT_QA_PROMPT = QuestionAnswerPrompt(MORE_OPENED_TEXT_QA_PROMPT_TMPL)
+MORE_OPENED_TEXT_QA_PROMPT_ZH = QuestionAnswerPrompt(MORE_OPENED_TEXT_QA_PROMPT_ZH_TMPL)
 
 
 DATAPATH = '../data'
-CHATBOT_PATH = '../bot.json'
+CHATBOT_PATH = '../bot2.json'
 
 #bot = chatbot.Chatbot(DATAPATH) 'gpt-3.5-turbo'
-llm_predictor = get_llm_predictor('gpt-3.5-turbo', temperature=0.1, max_tokens=512,)
-prompt_helper = PromptHelper(2048, 128, 30)
-text_qa_template = HALF_OPENED_TEXT_QA_PROMPT
+llm_predictor = get_llm_predictor('gpt-3.5-turbo', temperature=0.6, max_tokens=512,)
+prompt_helper = PromptHelper(2048, 512, 300, separator='\n\n')
+text_qa_template = MORE_OPENED_TEXT_QA_PROMPT
 
 # Call OpenAI API to receive response
 
@@ -47,8 +73,8 @@ def initialized_chatbot():
         prompt_helper  = prompt_helper,
         text_qa_template = text_qa_template,
         language_detect = True,
-        human_agent_name = 'customer',
-        ai_angent_name = "you"
+        human_agent_name = 'Q',
+        ai_angent_name = "A"
         )
     bot.text_qa_template = text_qa_template
     return bot
@@ -157,11 +183,17 @@ def chat_page():
 
     if submit_button:
         try:
-            output = bot.continue_conversation(user_input)
+            if lang_detect(user_input) == 'Chinese':
+                output = bot.conversation(user_input, text_qa_template = MORE_OPENED_TEXT_QA_PROMPT_ZH)
+            else:
+                output = bot.conversation(user_input)
         except:
             #bot = chatbot.Chatbot(DATAPATH)
             bot = initialized_chatbot()
-            output = bot.continue_conversation(user_input)
+            if lang_detect(user_input) == 'Chinese':
+                output = bot.conversation(user_input, text_qa_template = MORE_OPENED_TEXT_QA_PROMPT_ZH)
+            else:
+                output = bot.conversation(user_input)
         output = output.strip()
         # store the output
         #print(bot.text_qa_template.prompt.template)
