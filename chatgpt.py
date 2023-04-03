@@ -57,7 +57,8 @@ MORE_OPENED_TEXT_QA_PROMPT_ZH = QuestionAnswerPrompt(MORE_OPENED_TEXT_QA_PROMPT_
 
 
 DATAPATH = '../data'
-CHATBOT_PATH = '../bot2.json'
+CHATBOT_PATH = '../bot2_withlinks.json' #'../bot2.json'
+
 
 #bot = chatbot.Chatbot(DATAPATH) 'gpt-3.5-turbo'
 llm_predictor = get_llm_predictor('gpt-3.5-turbo', temperature=0.6, max_tokens=512,)
